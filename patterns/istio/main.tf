@@ -32,10 +32,10 @@ data "aws_availability_zones" "available" {}
 
 locals {
   name   = basename(path.cwd)
-  region = "us-west-2"
+  region = "us-east-1"
 
-  vpc_cidr = "10.0.0.0/16"
-  azs      = slice(data.aws_availability_zones.available.names, 0, 3)
+  # vpc_cidr = "10.0.0.0/16"
+  # azs      = slice(data.aws_availability_zones.available.names, 0, 3)
 
   istio_chart_url     = "https://istio-release.storage.googleapis.com/charts"
   istio_chart_version = "1.18.1"
@@ -43,6 +43,23 @@ locals {
   tags = {
     Blueprint  = local.name
     GithubRepo = "github.com/aws-ia/terraform-aws-eks-blueprints"
+  }
+}
+
+data "aws_vpc" "vpc" {
+  tags = {
+    Name = "Application VPC"
+  }
+}
+
+data "aws_subnets" "private_subnets" {
+  filter {
+    name = "vpc-id"
+    values = [element(data.aws_vpc.vpc.*.id, 0)]
+  }
+
+  tags = {
+    Name = "Private application *"
   }
 }
 
@@ -66,8 +83,8 @@ module "eks" {
     }
   }
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  vpc_id     = data.aws_vpc.vpc.id
+  subnet_ids = data.aws_subnets.private_subnets.ids
 
   eks_managed_node_groups = {
     initial = {
@@ -165,8 +182,10 @@ module "eks_blueprints_addons" {
             }
             service = {
               annotations = {
-                "service.beta.kubernetes.io/aws-load-balancer-type"       = "nlb"
-                "service.beta.kubernetes.io/aws-load-balancer-scheme"     = "internet-facing"
+                "service.beta.kubernetes.io/aws-load-balancer-type"       = "alb"
+                "service.beta.kubernetes.io/aws-load-balancer-scheme"     = "private"
+                # "service.beta.kubernetes.io/aws-load-balancer-type"       = "nlb"
+                # "service.beta.kubernetes.io/aws-load-balancer-scheme"     = "internet-facing"
                 "service.beta.kubernetes.io/aws-load-balancer-attributes" = "load_balancing.cross_zone.enabled=true"
               }
             }
@@ -183,27 +202,27 @@ module "eks_blueprints_addons" {
 # Supporting Resources
 ################################################################################
 
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+# module "vpc" {
+#   source  = "terraform-aws-modules/vpc/aws"
+#   version = "~> 5.0"
 
-  name = local.name
-  cidr = local.vpc_cidr
+#   name = local.name
+#   cidr = local.vpc_cidr
 
-  azs             = local.azs
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
+#   azs             = local.azs
+#   private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
+#   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
 
-  enable_nat_gateway = true
-  single_nat_gateway = true
+#   enable_nat_gateway = true
+#   single_nat_gateway = true
 
-  public_subnet_tags = {
-    "kubernetes.io/role/elb" = 1
-  }
+#   public_subnet_tags = {
+#     "kubernetes.io/role/elb" = 1
+#   }
 
-  private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1
-  }
+#   private_subnet_tags = {
+#     "kubernetes.io/role/internal-elb" = 1
+#   }
 
-  tags = local.tags
-}
+#   tags = local.tags
+# }
