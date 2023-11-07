@@ -28,7 +28,7 @@ jobs:
         include:
           - example_path: patterns/agones-game-controller
           - example_path: patterns/fargate-serverless
-          - example_path: patterns/argocd
+          - example_path: patterns/gitops/getting-started-argocd
           - example_path: patterns/ipv6-eks-cluster
           - example_path: patterns/karpenter
           - example_path: patterns/multi-tenancy-with-teams
@@ -41,14 +41,14 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
 
       - name: Setup backend
         # Un-comment remote backend for use in workflow
         run: sed -i "s/# //g" ${{ matrix.example_path }}/versions.tf
 
       - name: Auth AWS
-        uses: aws-actions/configure-aws-credentials@v4.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
           aws-region: us-west-2
@@ -56,7 +56,7 @@ jobs:
           role-session-name: GithubActions-Session
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.0.0
 
@@ -65,6 +65,7 @@ jobs:
         run: |
           terraform init -upgrade=true
           terraform destroy -target=module.eks_blueprints_kubernetes_addons  -no-color -input=false -auto-approve
-          terraform destroy -target=module.eks_blueprints  -no-color -input=false -auto-approve
+          terraform destroy -target=module.eks_blueprints_addons -no-color -input=false -auto-approve
+          terraform destroy -target=module.eks_blueprints -no-color -input=false -auto-approve
           terraform destroy -target=module.eks -no-color -input=false -auto-approve
           terraform destroy -no-color -input=false -auto-approve

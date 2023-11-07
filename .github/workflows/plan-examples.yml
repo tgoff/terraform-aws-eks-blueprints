@@ -1,10 +1,6 @@
 name: plan-examples
 
 on:
-  # Review https://securitylab.github.com/research/github-actions-preventing-pwn-requests/ and better understand the risks of using pull_request_target before making major changes to this workflow.
-  pull_request_target:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
@@ -32,7 +28,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
 
       - name: Get Terraform directories for evaluation
         id: dirs
@@ -67,13 +63,13 @@ jobs:
 
       - name: checkout-merge
         if: "contains(github.event_name, 'pull_request')"
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           ref: refs/pull/${{github.event.pull_request.number}}/merge
 
       - name: checkout
         if: "!contains(github.event_name, 'pull_request')"
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
 
       - uses: dorny/paths-filter@v2
         id: changes
@@ -88,7 +84,7 @@ jobs:
               - '*.tf'
 
       - name: Configure AWS credentials from Test account
-        uses: aws-actions/configure-aws-credentials@v4.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         if: steps.changes.outputs.src== 'true'
         with:
           role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
@@ -97,7 +93,7 @@ jobs:
           role-session-name: GithubActions-Session
 
       - name: Terraform Job
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         if: steps.changes.outputs.src== 'true'
         with:
           terraform_version: 1.0.0
